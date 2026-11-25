@@ -536,10 +536,18 @@ async function handle(req, res) {
   } catch { send(res, 404, 'Introuvable'); }
 }
 
+function requestHandler(req, res) {
+  return handle(req, res).catch((error) => {
+    console.error('Erreur serveur:', error.message);
+    if (!res.headersSent) send(res, 500, { error: 'Une erreur est survenue. Réessaie dans un instant.' });
+    else res.end();
+  });
+}
+
 function createHttpServer() {
-  return http.createServer((req, res) => handle(req, res).catch((error) => { console.error('Erreur serveur:', error.message); if (!res.headersSent) send(res, 500, { error: 'Une erreur est survenue. Réessaie dans un instant.' }); else res.end(); }));
+  return http.createServer(requestHandler);
 }
 
 if (require.main === module) createHttpServer().listen(PORT, () => console.log(`Herbier est prêt sur http://localhost:${PORT}`));
 
-module.exports = { handle, createHttpServer, hash, validItem, normalizeItem, isPublicAddress, readAmazonPrice, readAmazonImage, extractProductMetadata, fetchProductMetadata, supabaseRequest, readStore, writeStore, migrateLegacyStore };
+module.exports = Object.assign(requestHandler, { handle, createHttpServer, hash, validItem, normalizeItem, isPublicAddress, readAmazonPrice, readAmazonImage, extractProductMetadata, fetchProductMetadata, supabaseRequest, readStore, writeStore, migrateLegacyStore });
