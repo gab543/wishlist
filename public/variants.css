@@ -1,0 +1,15 @@
+.variant-editor{margin:5px 0 18px;padding-top:20px;border-top:1px solid var(--line)}
+.variant-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+.variant-heading h3{margin:0 0 5px;font-family:var(--display);font-size:19px;font-weight:500}
+.variant-heading p{max-width:290px;margin:0;color:#828a7e;font-size:10px;line-height:1.5}
+.variant-heading .button{min-height:38px;padding:0 12px;gap:8px;white-space:nowrap;font-size:10px}
+.variant-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.75fr) auto;align-items:end;gap:10px;padding:12px 0;border-top:1px solid rgba(223,217,204,.7)}
+.variant-row label{min-width:0;margin:0!important}
+.variant-row input{min-height:40px!important;margin:6px 0 0!important;padding:9px 10px!important}
+.variant-remove{min-height:39px;margin-bottom:18px;padding:0 9px;font-size:10px}
+.wish-options{margin:18px 0 0;padding:0;list-style:none;border-top:1px solid var(--line)}
+.wish-option{display:flex;align-items:baseline;justify-content:space-between;gap:15px;padding:10px 0;border-bottom:1px solid rgba(223,217,204,.75);font-size:12px}
+.wish-option-label{color:#647063}
+.wish-option-price{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.admin-item-copy p{overflow-wrap:anywhere}
+@media(max-width:600px){.variant-heading{align-items:flex-start;flex-direction:column}.variant-heading .button{align-self:flex-start}.variant-row{grid-template-columns:minmax(0,1fr) minmax(0,.8fr) auto;gap:7px}.variant-remove{padding:0 7px;font-size:9px}}

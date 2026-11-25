@@ -1,0 +1,15 @@
+﻿{
+    "name":  "herbier-wishlist",
+    "version":  "1.0.0",
+    "private":  true,
+    "description":  "Wishlist personnelle privée et partageable",
+    "scripts":  {
+                    "start":  "node server.js",
+                    "dev":  "node --watch server.js",
+                    "migrate:json":  "node scripts/migrate-json-to-supabase.js",
+                    "check":  "node --check server.js \u0026\u0026 node --check public/app.js \u0026\u0026 node --check public/admin.js"
+                },
+    "engines":  {
+                    "node":  "\u003e=20"
+                }
+}

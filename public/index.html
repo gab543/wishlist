@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f4ed">
+  <meta name="description" content="Une collection de belles choses choisies avec soin, à découvrir grâce à un code privé.">
+  <title>Herbier — une wishlist personnelle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/variants.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <header class="site-header">
+    <a class="wordmark" href="/" aria-label="Herbier, accueil"><span class="wordmark-icon" aria-hidden="true">h.</span><span>herbier</span></a>
+    <span class="header-note"><span class="status-dot"></span>une collection privée</span>
+  </header>
+  <main id="main">
+    <section class="hero" id="gate-view">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span>UN PETIT JARDIN D’ENVIES</p>
+        <h1>Des choses choisies<br><em>avec le cœur.</em></h1>
+        <p class="hero-lede">Quelques objets qui me ressemblent, réunis ici pour les partager avec les personnes qui comptent.</p>
+        <form class="access-form" id="access-form">
+          <label for="share-code">Le code qu’on vous a confié</label>
+          <div class="input-wrap"><span aria-hidden="true" class="key-icon">⌘</span><input id="share-code" name="code" type="text" autocomplete="off" spellcheck="false" placeholder="Saisir le code…" required maxlength="80"><button class="button button-dark" type="submit"><span>Découvrir</span><span aria-hidden="true">↗</span></button></div>
+          <p class="form-note">Votre code reste privé et n’apparaît jamais dans l’adresse du site.</p>
+          <p class="form-error" id="access-error" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="art-frame"><div class="art-orbit"></div><div class="art-sun"></div><svg class="botanical" viewBox="0 0 370 450" fill="none"><path d="M173 422C190 328 171 245 199 151C211 110 227 73 256 32" stroke="#52694E" stroke-width="3" stroke-linecap="round"/><path d="M181 322C127 313 82 283 54 238C100 238 147 259 181 322Z" fill="#9EAF91"/><path d="M194 271C240 265 278 235 295 194C254 197 218 220 194 271Z" fill="#768969"/><path d="M190 226C147 211 119 177 112 136C151 151 179 181 190 226Z" fill="#B4BEA6"/><path d="M205 172C242 162 265 135 271 99C238 109 215 134 205 172Z" fill="#849779"/><path d="M221 114C194 89 183 54 191 19C219 43 230 77 221 114Z" fill="#A6B49A"/><path d="M182 362C143 350 111 351 80 363M197 304C231 292 256 290 279 297" stroke="#52694E" stroke-width="2" stroke-linecap="round"/><circle cx="188" cy="74" r="7" fill="#D38263"/><circle cx="276" cy="213" r="5" fill="#D38263"/></svg><span class="art-caption">les trouvailles<br>qui font sourire</span></div><span class="art-stamp">N° 01 <span>·</span> PERSONNEL</span>
+      </div>
+      <div class="hero-bottom"><span>FAIT AVEC ATTENTION</span><span class="bottom-sprout">✳</span><span>PARTAGÉ EN PRIVÉ</span></div>
+    </section>
+    <section class="wishlist-section hidden" id="wishlist-view" aria-live="polite">
+      <div class="list-heading"><div><p class="eyebrow"><span class="eyebrow-line"></span>MA PETITE SÉLECTION</p><h1 id="list-title" tabindex="-1"></h1><p class="list-description" id="list-description"></p></div><button class="text-button" id="close-list" type="button">← <span>Retour</span></button></div>
+      <div class="items-grid" id="items-grid"></div>
+      <div class="empty-state hidden" id="empty-state"><span class="empty-flower" aria-hidden="true">✳</span><h2>Le jardin prend forme.</h2><p>La sélection sera bientôt enrichie.</p></div>
+      <footer class="list-footer"><span>UNE LISTE PERSONNELLE, PARTAGÉE AVEC SOIN</span><span>✳</span></footer>
+    </section>
+  </main>
+  <footer class="site-footer"><span>© HERBIER · UNE WISHLIST PERSONNELLE</span><a href="/admin">Accès administrateur <span aria-hidden="true">↗</span></a></footer>
+</body>
+</html>
