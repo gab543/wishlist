@@ -86,7 +86,7 @@ async function readBody(req) {
   return body ? JSON.parse(body) : {};
 }
 function isConfigured() {
-  return ADMIN_PASSWORD.length >= 16 && SESSION_SECRET.length >= 32 && Boolean(SUPABASE_URL && SUPABASE_SECRET_KEY);
+  return ADMIN_PASSWORD.length >= 12 && SESSION_SECRET.length >= 32 && Boolean(SUPABASE_URL && SUPABASE_SECRET_KEY);
 }
 async function supabaseRequest(endpoint, { method = 'GET', body, prefer } = {}) {
   if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) throw new Error('Supabase is not configured: set SUPABASE_URL and SUPABASE_SECRET_KEY.');
