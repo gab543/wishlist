@@ -64,12 +64,16 @@ function addPriceOption(list, labelText, priceValue) {
 }
 function showCodeStep() {
   codeStep.classList.remove('hidden'); memberStep.classList.add('hidden');
+  shareCodeInput.disabled = false;
   shareCodeInput.required = true; memberName.required = false; memberPassword.required = false;
+  memberName.disabled = true; memberPassword.disabled = true;
   memberPassword.value = ''; accessError.textContent = '';
   document.querySelector('#share-code').focus();
 }
 function showMemberStep(mode, name = '') {
   memberMode = mode; codeStep.classList.add('hidden'); memberStep.classList.remove('hidden');
+  shareCodeInput.disabled = true;
+  memberName.disabled = false; memberPassword.disabled = false;
   shareCodeInput.required = false;
   const registering = mode === 'register';
   if (!registering && name) rememberedName = name;
