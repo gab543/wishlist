@@ -1,4 +1,4 @@
-﻿{
+{
     "name":  "herbier-wishlist",
     "version":  "1.0.0",
     "private":  true,
@@ -10,6 +10,6 @@
                     "check":  "node --check server.js \u0026\u0026 node --check public/app.js \u0026\u0026 node --check public/admin.js"
                 },
     "engines":  {
-                    "node":  "\u003e=20"
+                    "node":  "26.x"
                 }
 }

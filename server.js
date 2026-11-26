@@ -132,7 +132,7 @@ async function readBody(req) {
   return body ? JSON.parse(body) : {};
 }
 function isConfigured() {
-  return ADMIN_PASSWORD.length >= 16 && SESSION_SECRET.length >= 32 && Boolean(SUPABASE_URL && SUPABASE_SECRET_KEY);
+  return ADMIN_PASSWORD.length >= 12 && SESSION_SECRET.length >= 32 && Boolean(SUPABASE_URL && SUPABASE_SECRET_KEY);
 }
 async function supabaseRequest(endpoint, { method = 'GET', body, prefer } = {}) {
   if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) throw new Error('Supabase is not configured: set SUPABASE_URL and SUPABASE_SECRET_KEY.');
@@ -669,10 +669,18 @@ async function handle(req, res) {
   } catch { send(res, 404, 'Introuvable'); }
 }
 
+function requestHandler(req, res) {
+  return handle(req, res).catch((error) => {
+    console.error('Erreur serveur:', error.message);
+    if (!res.headersSent) send(res, 500, { error: 'Une erreur est survenue. Réessaie dans un instant.' });
+    else res.end();
+  });
+}
+
 function createHttpServer() {
-  return http.createServer((req, res) => handle(req, res).catch((error) => { console.error('Erreur serveur:', error.message); if (!res.headersSent) send(res, 500, { error: 'Une erreur est survenue. Réessaie dans un instant.' }); else res.end(); }));
+  return http.createServer(requestHandler);
 }
 
 if (require.main === module) createHttpServer().listen(PORT, () => console.log(`Herbier est prêt sur http://localhost:${PORT}`));
 
-module.exports = { handle, createHttpServer, hash, validItem, normalizeItem, isPublicAddress, readAmazonPrice, readAmazonImage, extractProductMetadata, fetchProductMetadata, supabaseRequest, readStore, writeStore, migrateLegacyStore };
+module.exports = Object.assign(requestHandler, { handle, createHttpServer, hash, validItem, normalizeItem, isPublicAddress, readAmazonPrice, readAmazonImage, extractProductMetadata, fetchProductMetadata, supabaseRequest, readStore, writeStore, migrateLegacyStore });
