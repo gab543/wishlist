@@ -5,6 +5,7 @@ const wishlistView = document.querySelector('#wishlist-view');
 const grid = document.querySelector('#items-grid');
 const emptyState = document.querySelector('#empty-state');
 const codeStep = document.querySelector('#code-step');
+const shareCodeInput = document.querySelector('#share-code');
 const memberStep = document.querySelector('#member-step');
 const memberName = document.querySelector('#member-name');
 const memberPassword = document.querySelector('#member-password');
@@ -15,6 +16,7 @@ const memberSubmit = document.querySelector('#member-submit');
 const memberNote = document.querySelector('#member-note');
 memberName.required = false;
 memberPassword.required = false;
+shareCodeInput.required = false;
 let memberMode = 'login';
 let rememberedName = '';
 const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
@@ -62,12 +64,13 @@ function addPriceOption(list, labelText, priceValue) {
 }
 function showCodeStep() {
   codeStep.classList.remove('hidden'); memberStep.classList.add('hidden');
-  memberName.required = false; memberPassword.required = false;
+  shareCodeInput.required = true; memberName.required = false; memberPassword.required = false;
   memberPassword.value = ''; accessError.textContent = '';
   document.querySelector('#share-code').focus();
 }
 function showMemberStep(mode, name = '') {
   memberMode = mode; codeStep.classList.add('hidden'); memberStep.classList.remove('hidden');
+  shareCodeInput.required = false;
   const registering = mode === 'register';
   if (!registering && name) rememberedName = name;
   memberName.classList.remove('hidden');
@@ -95,12 +98,22 @@ async function openWishlist() {
 }
 accessForm.addEventListener('submit', async (event) => {
   event.preventDefault(); accessError.textContent = '';
-  const button = memberStep.classList.contains('hidden') ? accessForm.querySelector('#code-step button') : memberSubmit;
+  const enteringCode = memberStep.classList.contains('hidden');
+  if (enteringCode && !shareCodeInput.value.trim()) {
+    accessError.textContent = 'Saisissez le code de partage.'; shareCodeInput.focus(); return;
+  }
+  if (!enteringCode && !memberName.value.trim()) {
+    accessError.textContent = 'Saisissez votre nom.'; memberName.focus(); return;
+  }
+  if (!enteringCode && !/^\d{4}$/.test(memberPassword.value)) {
+    accessError.textContent = 'Saisissez un code personnel composé de 4 chiffres.'; memberPassword.focus(); return;
+  }
+  const button = enteringCode ? accessForm.querySelector('#code-step button') : memberSubmit;
   button.disabled = true;
   const originalText = button.querySelector('span').textContent;
   button.querySelector('span').textContent = 'Un instant…';
   try {
-    if (memberStep.classList.contains('hidden')) {
+    if (enteringCode) {
       await request('/api/access', { method: 'POST', body: JSON.stringify({ code: new FormData(accessForm).get('code') }) });
       document.querySelector('#share-code').value = '';
       showMemberStep('register', rememberedName);
