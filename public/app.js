@@ -80,7 +80,7 @@ function showMemberStep(mode, name = '') {
   memberPasswordLabel.textContent = 'Code à 4 chiffres';
   memberPassword.autocomplete = 'off';
   memberSubmit.querySelector('span').textContent = registering ? 'Créer mon accès' : 'Ouvrir ma wishlist';
-  $('#switch-code').textContent = registering ? 'J’ai déjà un accès' : 'Première connexion ? Rejoindre une wishlist';
+  document.querySelector('#switch-code').textContent = registering ? 'J’ai déjà un accès' : 'Première connexion ? Rejoindre une wishlist';
   memberNote.textContent = registering ? 'Choisissez 4 chiffres faciles à retenir, par exemple une date de naissance.' : 'Code oublié ? Demandez à la personne qui vous a invité de renouveler le code de partage.';
   accessError.textContent = '';
   (registering || !name ? memberName : memberPassword).focus();
