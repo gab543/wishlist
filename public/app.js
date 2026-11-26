@@ -32,7 +32,12 @@ function renderItems(items) {
   emptyState.classList.toggle('hidden', items.length !== 0);
   grid.classList.toggle('hidden', items.length === 0);
   for (const [index, item] of items.entries()) {
-    const card = document.createElement('article'); card.className = 'wish-card'; card.style.animationDelay = `${Math.min(index * 55, 330)}ms`;
+    const card = document.createElement(item.shopUrl ? 'a' : 'article');
+    card.className = 'wish-card'; card.style.animationDelay = `${Math.min(index * 55, 330)}ms`;
+    if (item.shopUrl) {
+      card.href = item.shopUrl; card.target = '_blank'; card.rel = 'noopener noreferrer';
+      card.setAttribute('aria-label', `Voir ${item.name} dans la boutique (nouvel onglet)`);
+    }
     if (item.imageUrl) {
       const image = document.createElement('img'); image.className = 'wish-image'; image.src = item.imageUrl; image.alt = item.name; image.width = 600; image.height = 535; image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
       image.addEventListener('error', () => { const fallback = document.createElement('div'); fallback.className = 'wish-image wish-placeholder'; fallback.setAttribute('aria-hidden', 'true'); fallback.textContent = 'h.'; image.replaceWith(fallback); }, { once: true });
@@ -51,7 +56,7 @@ function renderItems(items) {
       for (const variant of variants) addPriceOption(options, variant.label, variant.price);
       card.append(options);
     } else if (item.price != null) { const price = document.createElement('span'); price.className = 'wish-price'; price.textContent = euro.format(item.price); bottom.append(price); }
-    if (item.shopUrl) { const link = document.createElement('a'); link.className = 'shop-link'; link.href = item.shopUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'Voir la boutique ↗'; bottom.append(link); }
+    if (item.shopUrl) { const link = document.createElement('span'); link.className = 'shop-link'; link.textContent = 'Voir la boutique ↗'; bottom.append(link); }
     if (bottom.childNodes.length) card.append(bottom);
     grid.append(card);
   }
