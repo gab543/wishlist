@@ -4,6 +4,19 @@ const gateView = document.querySelector('#gate-view');
 const wishlistView = document.querySelector('#wishlist-view');
 const grid = document.querySelector('#items-grid');
 const emptyState = document.querySelector('#empty-state');
+const codeStep = document.querySelector('#code-step');
+const memberStep = document.querySelector('#member-step');
+const memberName = document.querySelector('#member-name');
+const memberPassword = document.querySelector('#member-password');
+const memberGreeting = document.querySelector('#member-greeting');
+const memberNameLabel = document.querySelector('#member-name-label');
+const memberPasswordLabel = document.querySelector('#member-password-label');
+const memberSubmit = document.querySelector('#member-submit');
+const memberNote = document.querySelector('#member-note');
+memberName.required = false;
+memberPassword.required = false;
+let memberMode = 'login';
+let rememberedName = '';
 const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
 
 async function request(url, options = {}) {
@@ -47,18 +60,85 @@ function addPriceOption(list, labelText, priceValue) {
   const price = document.createElement('span'); price.className = 'wish-option-price'; price.textContent = euro.format(priceValue);
   row.append(label, price); list.append(row);
 }
+function showCodeStep() {
+  codeStep.classList.remove('hidden'); memberStep.classList.add('hidden');
+  memberName.required = false; memberPassword.required = false;
+  memberPassword.value = ''; accessError.textContent = '';
+  document.querySelector('#share-code').focus();
+}
+function showMemberStep(mode, name = '') {
+  memberMode = mode; codeStep.classList.add('hidden'); memberStep.classList.remove('hidden');
+  const registering = mode === 'register';
+  if (!registering && name) rememberedName = name;
+  memberName.classList.remove('hidden');
+  memberNameLabel.classList.remove('hidden');
+  memberName.required = true;
+  memberPassword.required = true;
+  memberName.value = name;
+  memberPassword.value = '';
+  memberGreeting.textContent = registering ? 'Première connexion ? Créez votre accès à la wishlist.' : name ? `Bonjour ${name}, retrouvez votre wishlist avec votre code.` : 'Entrez votre nom et votre code pour retrouver la wishlist.';
+  memberPasswordLabel.textContent = 'Code à 4 chiffres';
+  memberPassword.autocomplete = 'off';
+  memberSubmit.querySelector('span').textContent = registering ? 'Créer mon accès' : 'Ouvrir ma wishlist';
+  $('#switch-code').textContent = registering ? 'J’ai déjà un accès' : 'Première connexion ? Rejoindre une wishlist';
+  memberNote.textContent = registering ? 'Choisissez 4 chiffres faciles à retenir, par exemple une date de naissance.' : 'Code oublié ? Demandez à la personne qui vous a invité de renouveler le code de partage.';
+  accessError.textContent = '';
+  (registering || !name ? memberName : memberPassword).focus();
+}
+async function openWishlist() {
+  const list = await request('/api/wishlist');
+  document.querySelector('#list-title').textContent = list.title;
+  document.querySelector('#list-description').textContent = list.description;
+  renderItems(list.items);
+  gateView.classList.add('hidden'); wishlistView.classList.remove('hidden');
+  wishlistView.querySelector('h1').focus?.();
+}
 accessForm.addEventListener('submit', async (event) => {
   event.preventDefault(); accessError.textContent = '';
-  const button = accessForm.querySelector('button'); button.disabled = true; button.querySelector('span').textContent = 'Vérification…';
+  const button = memberStep.classList.contains('hidden') ? accessForm.querySelector('#code-step button') : memberSubmit;
+  button.disabled = true;
+  const originalText = button.querySelector('span').textContent;
+  button.querySelector('span').textContent = 'Un instant…';
   try {
-    await request('/api/access', { method: 'POST', body: JSON.stringify({ code: new FormData(accessForm).get('code') }) });
-    const list = await request('/api/wishlist');
-    document.querySelector('#list-title').textContent = list.title;
-    document.querySelector('#list-description').textContent = list.description;
-    renderItems(list.items);
-    gateView.classList.add('hidden'); wishlistView.classList.remove('hidden');
-    wishlistView.querySelector('h1').focus?.();
-  } catch (error) { accessError.textContent = error.message === 'Accès requis.' ? 'Une erreur est survenue. Vérifie le code puis réessaie.' : error.message; }
-  finally { button.disabled = false; button.querySelector('span').textContent = 'Découvrir'; }
+    if (memberStep.classList.contains('hidden')) {
+      await request('/api/access', { method: 'POST', body: JSON.stringify({ code: new FormData(accessForm).get('code') }) });
+      document.querySelector('#share-code').value = '';
+      showMemberStep('register', rememberedName);
+      return;
+    }
+    if (memberMode === 'register') {
+      const created = await request('/api/member/register', { method: 'POST', body: JSON.stringify({ name: memberName.value, pin: memberPassword.value }) });
+      rememberedName = created.name;
+      showMemberStep('login', created.name);
+    } else {
+      const loggedIn = await request('/api/member/login', { method: 'POST', body: JSON.stringify({ name: memberName.value, pin: memberPassword.value }) });
+      rememberedName = loggedIn.name;
+    }
+    await openWishlist();
+  } catch (error) { accessError.textContent = error.message; }
+  finally {
+    button.disabled = false;
+    button.querySelector('span').textContent = button === memberSubmit
+      ? (memberMode === 'register' ? 'Créer mon accès' : 'Ouvrir ma wishlist')
+      : originalText;
+  }
 });
-document.querySelector('#close-list').addEventListener('click', () => { wishlistView.classList.add('hidden'); gateView.classList.remove('hidden'); accessForm.reset(); document.querySelector('#share-code').focus(); });
+document.querySelector('#switch-code').addEventListener('click', async () => {
+  if (memberMode === 'register') showMemberStep('login', memberName.value.trim() || rememberedName);
+  else {
+    rememberedName = memberName.value.trim() || rememberedName;
+    showCodeStep();
+  }
+});
+document.querySelector('#back-to-login').addEventListener('click', () => showMemberStep('login', rememberedName));
+document.querySelector('#close-list').addEventListener('click', async () => {
+  await request('/api/member/logout', { method: 'POST', body: '{}' }).catch(() => {});
+  wishlistView.classList.add('hidden'); gateView.classList.remove('hidden');
+  showMemberStep('login', rememberedName);
+});
+(async () => {
+  try {
+    const visitor = await request('/api/visitor/status');
+    showMemberStep('login', visitor.known ? visitor.name : '');
+  } catch (error) { accessError.textContent = error.message; }
+})();

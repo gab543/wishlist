@@ -3,7 +3,7 @@ Je veux créer un site web élégant pour publier ma wishlist personnelle. Il n�
 
 ## Objectif
 
-En tant qu’unique administrateur, je peux gérer ma wishlist depuis un tableau de bord privé. Je peux ensuite partager son code d’accès unique : les visiteurs le saisissent sur la page d’accueil pour accéder à ma liste, sans pouvoir modifier son contenu. Le code n’est pas placé dans l’URL. Il n’y a ni gestion de plusieurs wishlists ni comptes visiteurs.
+En tant qu’unique administrateur, je peux gérer ma wishlist depuis un tableau de bord privé. Je peux ensuite partager son code d’accès unique : les visiteurs l’utilisent lors de leur première connexion pour créer leur accès nominatif et consulter ma liste sans pouvoir modifier son contenu. Le code n’est pas placé dans l’URL. Il n’y a qu’une seule wishlist.
 
 ## Expérience et design
 
@@ -22,7 +22,10 @@ Soigne les animations : transitions fluides, apparitions discrètes, légers mou
 
 ## Fonctionnalités
 
-- Accès en lecture seule à l’unique wishlist après saisie de son code de partage sur la page d’accueil.
+- Connexion habituelle : saisie du nom et d’un code personnel à 4 chiffres.
+- Première connexion : le visiteur choisit « Rejoindre une wishlist », saisit le code de partage, puis choisit son nom et son code personnel à 4 chiffres.
+- Le nom peut être prérempli sur le même navigateur, mais reste modifiable.
+- Accès en lecture seule à l’unique wishlist ; renouveler le code invalide les accès visiteurs existants.
 - Tableau de bord administrateur pour créer, consulter, modifier et supprimer des articles.
 - Un article peut avoir un nom, une description, une image, un prix indicatif, une catégorie et un lien externe.
 - Permettre de gérer le titre et la description de la wishlist, ainsi que de renouveler son code de partage.

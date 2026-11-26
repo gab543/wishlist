@@ -25,9 +25,22 @@
         <h1>Des choses choisies<br><em>avec le cœur.</em></h1>
         <p class="hero-lede">Quelques objets qui me ressemblent, réunis ici pour les partager avec les personnes qui comptent.</p>
         <form class="access-form" id="access-form">
-          <label for="share-code">Le code qu’on vous a confié</label>
-          <div class="input-wrap"><span aria-hidden="true" class="key-icon">⌘</span><input id="share-code" name="code" type="text" autocomplete="off" spellcheck="false" placeholder="Saisir le code…" required maxlength="80"><button class="button button-dark" type="submit"><span>Découvrir</span><span aria-hidden="true">↗</span></button></div>
-          <p class="form-note">Votre code reste privé et n’apparaît jamais dans l’adresse du site.</p>
+          <div id="code-step" class="hidden">
+            <label for="share-code">Code de partage</label>
+            <div class="input-wrap"><span aria-hidden="true" class="key-icon">⌘</span><input id="share-code" name="code" type="text" autocomplete="off" spellcheck="false" translate="no" placeholder="Saisir le code…" required maxlength="80"><button class="button button-dark" type="submit"><span>Continuer</span><span aria-hidden="true">↗</span></button></div>
+            <p class="form-note">Ce code sert à créer votre accès la première fois.</p>
+            <button class="text-button switch-code" id="back-to-login" type="button">J’ai déjà un accès</button>
+          </div>
+          <div id="member-step">
+            <p class="member-greeting" id="member-greeting"></p>
+            <label for="member-name" id="member-name-label">Votre nom</label>
+            <input class="member-input" id="member-name" name="name" type="text" autocomplete="given-name" maxlength="80" required>
+            <label for="member-password" id="member-password-label">Votre code à 4 chiffres</label>
+            <input class="member-input" id="member-password" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}" autocomplete="off" placeholder="••••" minlength="4" maxlength="4" required>
+            <button class="button button-dark member-submit" id="member-submit" type="submit"><span>Ouvrir ma wishlist</span><span aria-hidden="true">↗</span></button>
+            <p class="form-note" id="member-note"></p>
+            <button class="text-button switch-code" id="switch-code" type="button">Première connexion ? Rejoindre une wishlist</button>
+          </div>
           <p class="form-error" id="access-error" role="status" aria-live="polite"></p>
         </form>
       </div>

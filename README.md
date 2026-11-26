@@ -1,6 +1,6 @@
 # Herbier
 
-Wishlist personnelle privée, avec accès visiteur en lecture seule par code unique et administration protégée.
+Wishlist personnelle privée, avec création d’accès visiteurs par code unique, connexion nominative et administration protégée.
 
 ## Démarrage local
 
@@ -12,6 +12,10 @@ Prérequis : Node.js 20 ou plus récent. L’application n’ajoute pas de clien
 4. Lancer `npm start`, puis ouvrir `http://localhost:3000`.
 5. Ouvrir `/admin`, se connecter et créer un code de partage. Il est montré une seule fois : le copier pour le transmettre.
 
+À chaque visite, les proches saisissent leur nom et leur code personnel à 4 chiffres. La première fois, ils cliquent sur « Première connexion ? Rejoindre une wishlist », puis saisissent le code de partage, leur nom et leur code personnel. Le navigateur peut préremplir le nom, mais il reste modifiable. Les codes personnels sont hachés côté serveur. Les tentatives sont limitées ; ce code à 4 chiffres offre une protection plus faible qu’un mot de passe long et sert uniquement à un accès en lecture seule. En cas d’oubli, l’administrateur peut renouveler le code de partage, ce qui oblige tous les proches à recréer leur accès.
+
+Le code courant reste consultable dans l’espace administrateur. Il est conservé chiffré dans Supabase avec une clé dérivée de `SESSION_SECRET`, en plus de son hash utilisé pour la validation. Pour un code déjà présent dans la base avant cette mise à jour, générez-en un nouveau pour activer son affichage persistant.
+
 La clé Supabase secrète reste uniquement dans l’environnement du serveur : ne la place jamais dans le navigateur ni dans une variable `NEXT_PUBLIC_*`. Une ancienne clé `service_role` fonctionne aussi, mais la clé secrète `sb_secret_...` est préférable.
 
 ## Importer les anciennes données JSON
@@ -22,7 +26,7 @@ Si la wishlist existe déjà dans `data/wishlist.json`, configure d’abord `.en
 
 Importer le dépôt dans Vercel et définir `ADMIN_PASSWORD`, `SESSION_SECRET`, `SUPABASE_URL` et `SUPABASE_SECRET_KEY` dans les variables d’environnement du projet. Le point d’entrée `server.ts` lance le serveur Node ; le stockage durable est assuré par Supabase, pas par les fichiers de l’instance Vercel.
 
-La table contient l’état de cette wishlist personnelle dans une seule ligne JSONB. RLS est activé et aucun accès n’est accordé aux rôles `anon` et `authenticated` ; seul le serveur accède à la base avec sa clé secrète. Les visiteurs utilisent l’API de l’application et doivent saisir le code actif.
+La table contient l’état de cette wishlist personnelle dans une seule ligne JSONB, y compris les comptes visiteurs (codes personnels hachés côté serveur). RLS est activé et aucun accès n’est accordé aux rôles `anon` et `authenticated` ; seul le serveur accède à la base avec sa clé secrète. Après cette mise à jour, les personnes ayant un ancien compte visiteur doivent le recréer avec le code de partage.
 
 Le rate limiting actuel est conservé en mémoire par instance. Il convient à un usage personnel, mais n’est pas partagé entre plusieurs instances Vercel.
 

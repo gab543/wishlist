@@ -20,6 +20,23 @@ async function showDashboard() {
   const data = await api('/api/admin/wishlist');
   $('#wishlist-title').value = data.title; $('#wishlist-description').value = data.description;
   items = data.items; renderAdminItems();
+  await loadShareCode();
+}
+async function loadShareCode() {
+  const codeNode = $('#new-code'); const copyButton = $('#copy-code'); const note = $('#share-code-note');
+  try {
+    const result = await api('/api/admin/share-code');
+    if (!result.available) {
+      codeNode.textContent = '—'; copyButton.disabled = true;
+      note.textContent = 'Ce code ancien ne peut pas être réaffiché. Créez un nouveau code pour le conserver ici.';
+      return;
+    }
+    codeNode.textContent = result.code; copyButton.disabled = false;
+    note.textContent = 'Code actuel. Vous pouvez le consulter et le copier à tout moment.';
+  } catch (error) {
+    codeNode.textContent = '—'; copyButton.disabled = true;
+    note.textContent = `Impossible de charger le code : ${error.message}`;
+  }
 }
 function renderAdminItems() {
   const list = $('#admin-items'); list.replaceChildren();
@@ -120,8 +137,8 @@ $('#cancel-dialog').addEventListener('click', () => itemDialog.close());
 itemDialog.addEventListener('click', (event) => { if (event.target === itemDialog) itemDialog.close(); });
 $('#logout-button').addEventListener('click', async () => { await api('/api/logout', { method: 'POST' }).catch(() => {}); dashboard.classList.add('hidden'); loginPanel.classList.remove('hidden'); loginForm.reset(); });
 $('#rotate-code').addEventListener('click', async () => {
-  if (!window.confirm('Créer un nouveau code ? L’ancien ne fonctionnera plus.')) return;
-  try { const result = await api('/api/admin/share-code', { method: 'POST', body: '{}' }); $('#new-code').textContent = result.code; $('#new-code-panel').classList.remove('hidden'); message('Nouveau code créé. Copiez-le maintenant.'); }
+  if (!window.confirm('Créer un nouveau code ? L’ancien sera désactivé et tous les proches devront recréer leur accès.')) return;
+  try { const result = await api('/api/admin/share-code', { method: 'POST', body: '{}' }); $('#new-code').textContent = result.code; $('#copy-code').disabled = false; $('#share-code-note').textContent = 'Nouveau code actif. Il restera affiché dans cet espace.'; message('Code renouvelé. Tous les proches devront recréer leur accès.'); }
   catch (error) { message(error.message, true); }
 });
 $('#copy-code').addEventListener('click', async () => {

@@ -7,6 +7,8 @@ const dns = require('node:dns').promises;
 const https = require('node:https');
 const net = require('node:net');
 const { spawn } = require('node:child_process');
+const { promisify } = require('node:util');
+const scrypt = promisify(crypto.scrypt);
 
 const ROOT = __dirname;
 // Charge .env sans dépendance externe et sans écraser les variables déjà définies par l’hôte.
@@ -32,6 +34,7 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_PRODUCT_HTML_BYTES = 4_000_000;
+const DUMMY_PIN_SALT = '7f4a1c9e2b6d8a0c3e5f7091b2d4a6c8';
 const attempts = new Map();
 
 function safeEqual(a, b) {
@@ -41,6 +44,25 @@ function safeEqual(a, b) {
 }
 function sign(value) { return crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('base64url'); }
 function hash(value) { return crypto.createHash('sha256').update(value).digest('hex'); }
+function shareCodeEncryptionKey() {
+  return crypto.createHash('sha256').update('herbier-wishlist-share-code-v1\0').update(SESSION_SECRET).digest();
+}
+function encryptShareCode(code) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', shareCodeEncryptionKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(code, 'utf8'), cipher.final()]);
+  return [iv, cipher.getAuthTag(), ciphertext].map((part) => part.toString('base64url')).join('.');
+}
+function decryptShareCode(encrypted) {
+  if (typeof encrypted !== 'string') return null;
+  try {
+    const [ivPart, tagPart, ciphertextPart] = encrypted.split('.');
+    if (!ivPart || !tagPart || !ciphertextPart) return null;
+    const decipher = crypto.createDecipheriv('aes-256-gcm', shareCodeEncryptionKey(), Buffer.from(ivPart, 'base64url'));
+    decipher.setAuthTag(Buffer.from(tagPart, 'base64url'));
+    return Buffer.concat([decipher.update(Buffer.from(ciphertextPart, 'base64url')), decipher.final()]).toString('utf8');
+  } catch { return null; }
+}
 function makeCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from(crypto.randomBytes(24), (byte) => alphabet[byte & 31]).join('');
@@ -60,14 +82,38 @@ function hasSession(req) {
   } catch { return false; }
 }
 function accessGrant(req) {
-  const value = cookie(req, 'herbier_access');
+  return signedCookieValue(req, 'herbier_access');
+}
+function signedCookieValue(req, key) {
+  const value = cookie(req, key);
   const [payload, signature] = value.split('.');
   if (!payload || !signature || !safeEqual(sign(payload), signature)) return null;
   try {
-    const grant = JSON.parse(Buffer.from(payload, 'base64url').toString());
-    return grant.exp > Date.now() ? grant : null;
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    return data.exp > Date.now() ? data : null;
   } catch { return null; }
 }
+function visitorIdentity(req, store) {
+  const identity = signedCookieValue(req, 'herbier_member');
+  if (!identity || identity.codeHash !== store.shareCodeHash) return null;
+  return (store.visitorAccounts || []).find((account) => account.id === identity.memberId) || null;
+}
+function cookieOptions(req) { return `HttpOnly; SameSite=Strict; Path=/${req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}`; }
+function signedValue(data) {
+  const payload = Buffer.from(JSON.stringify(data)).toString('base64url');
+  return `${payload}.${sign(payload)}`;
+}
+function memberCookies(req, account, store) {
+  const now = Date.now();
+  const member = signedValue({ exp: now + 365 * 24 * 60 * 60 * 1000, memberId: account.id, codeHash: store.shareCodeHash });
+  const access = signedValue({ exp: now + 12 * 60 * 60 * 1000, memberId: account.id, codeHash: store.shareCodeHash });
+  return [
+    `herbier_member=${member}; ${cookieOptions(req)}; Max-Age=31536000`,
+    `herbier_access=${access}; ${cookieOptions(req)}`,
+  ];
+}
+function validMemberName(value) { return typeof value === 'string' && value.trim().length >= 2 && value.trim().length <= 80; }
+function validMemberPin(value) { return typeof value === 'string' && /^\d{4}$/.test(value); }
 function send(res, status, body, headers = {}) {
   const content = typeof body === 'string' ? body : JSON.stringify(body);
   res.writeHead(status, { 'Content-Type': typeof body === 'string' ? 'text/plain; charset=utf-8' : 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY', ...headers });
@@ -114,11 +160,20 @@ async function getStoredStore() {
   return rows[0]?.state || null;
 }
 function createInitialStore() {
-  return { title: 'Les belles choses', description: 'Une sélection de choses qui me feraient plaisir.', shareCodeHash: hash(makeCode()), items: [] };
+  const shareCode = makeCode();
+  return { title: 'Les belles choses', description: 'Une sélection de choses qui me feraient plaisir.', shareCodeHash: hash(shareCode), shareCodeEncrypted: encryptShareCode(shareCode), visitorAuthVersion: 2, items: [], visitorAccounts: [] };
 }
 async function readStore() {
   const existing = await getStoredStore();
-  if (existing) return existing;
+  if (existing) {
+    if (!Array.isArray(existing.visitorAccounts)) existing.visitorAccounts = [];
+    if (existing.visitorAuthVersion !== 2) {
+      existing.visitorAccounts = [];
+      existing.visitorAuthVersion = 2;
+      await writeStore(existing);
+    }
+    return existing;
+  }
   const initial = createInitialStore();
   try {
     await supabaseRequest('wishlist_state', { method: 'POST', body: { id: 1, state: initial, updated_at: new Date().toISOString() }, prefer: 'return=minimal' });
@@ -445,6 +500,20 @@ async function handle(req, res) {
       const origin = req.headers.origin;
       if (origin && new URL(origin).host !== req.headers.host) return json(req, res, 403, { error: 'Requête refusée.' });
     }
+    if (req.method === 'GET' && url.pathname === '/api/visitor/status') {
+      const store = await readStore();
+      const member = visitorIdentity(req, store);
+      return json(req, res, 200, { known: Boolean(member), name: member?.name || '' });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/member/forget') {
+      return json(req, res, 200, { ok: true }, { 'Set-Cookie': [
+        `herbier_access=; ${cookieOptions(req)}; Max-Age=0`,
+        `herbier_member=; ${cookieOptions(req)}; Max-Age=0`,
+      ] });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/member/logout') {
+      return json(req, res, 200, { ok: true }, { 'Set-Cookie': `herbier_access=; ${cookieOptions(req)}; Max-Age=0` });
+    }
     if (url.pathname === '/api/access' && req.method === 'POST') {
       const body = await readBody(req).catch(() => ({}));
       const ip = req.socket.remoteAddress || 'local';
@@ -459,13 +528,73 @@ async function handle(req, res) {
         return json(req, res, 401, { error: 'Ce code ne donne pas accès à la liste. Vérifie-le et réessaie.' });
       }
       attempts.delete(`share:${ip}`);
-      const payload = Buffer.from(JSON.stringify({ exp: Date.now() + SESSION_MS, codeHash: store.shareCodeHash })).toString('base64url');
-      return json(req, res, 200, { access: true }, { 'Set-Cookie': `herbier_access=${payload}.${sign(payload)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_MS / 1000}${req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}` });
+      const enrollment = signedValue({ exp: Date.now() + 15 * 60 * 1000, codeHash: store.shareCodeHash });
+      return json(req, res, 200, { register: true }, { 'Set-Cookie': `herbier_enrollment=${enrollment}; ${cookieOptions(req)}; Max-Age=900` });
+    }
+    if (url.pathname === '/api/member/register' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const store = await readStore();
+      const enrollment = signedCookieValue(req, 'herbier_enrollment');
+      if (!enrollment || enrollment.codeHash !== store.shareCodeHash) return json(req, res, 401, { error: 'Le code a expiré. Saisissez-le à nouveau.' });
+      if (!validMemberName(body.name) || !validMemberPin(body.pin)) return json(req, res, 400, { error: 'Saisissez votre nom et un code composé de 4 chiffres.' });
+      const name = body.name.trim().replace(/\s+/g, ' ');
+      const nameKey = name.toLocaleLowerCase('fr-FR');
+      const existingAccount = store.visitorAccounts.find((account) => account.nameKey === nameKey);
+      if (existingAccount) {
+        const ip = req.socket.remoteAddress || 'local';
+        const key = `enroll:${ip}:${nameKey}`;
+        const entry = attempts.get(key) || { count: 0, until: 0 };
+        if (entry.until > Date.now()) return json(req, res, 429, { error: 'Trop d’essais. Réessayez dans quelques minutes.' });
+        const attempted = await scrypt(body.pin, existingAccount.salt, 64);
+        if (!safeEqual(attempted.toString('hex'), existingAccount.passwordHash)) {
+          entry.count += 1;
+          if (entry.count >= 6) { entry.until = Date.now() + 10 * 60 * 1000; entry.count = 0; }
+          attempts.set(key, entry);
+          return json(req, res, 409, { error: 'Ce nom a déjà un accès. Vérifiez le nom et le code à 4 chiffres, ou revenez à la connexion.' });
+        }
+        attempts.delete(key);
+        return json(req, res, 200, { ok: true, name: existingAccount.name }, { 'Set-Cookie': [
+          ...memberCookies(req, existingAccount, store),
+          `herbier_enrollment=; ${cookieOptions(req)}; Max-Age=0`,
+        ] });
+      }
+      const salt = crypto.randomBytes(16).toString('hex');
+      const passwordHash = (await scrypt(body.pin, salt, 64)).toString('hex');
+      const account = { id: crypto.randomUUID(), name, nameKey, salt, passwordHash };
+      store.visitorAccounts.push(account);
+      await writeStore(store);
+      return json(req, res, 201, { ok: true, name }, { 'Set-Cookie': [
+        ...memberCookies(req, account, store),
+        `herbier_enrollment=; ${cookieOptions(req)}; Max-Age=0`,
+      ] });
+    }
+    if (url.pathname === '/api/member/login' && req.method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const store = await readStore();
+      const nameKey = validMemberName(body.name) ? body.name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('fr-FR') : '';
+      const account = (store.visitorAccounts || []).find((entry) => entry.nameKey === nameKey);
+      const ip = req.socket.remoteAddress || 'local';
+      const key = `member:${ip}`;
+      const entry = attempts.get(key) || { count: 0, until: 0 };
+      if (entry.until > Date.now()) return json(req, res, 429, { error: 'Trop d’essais. Réessayez dans quelques minutes.' });
+      let valid = false;
+      const pin = validMemberPin(body.pin) ? body.pin : '0000';
+      const attempted = await scrypt(pin, account?.salt || DUMMY_PIN_SALT, 64);
+      if (account && validMemberPin(body.pin)) valid = safeEqual(attempted.toString('hex'), account.passwordHash);
+      if (!valid) {
+        entry.count += 1;
+        if (entry.count >= 6) { entry.until = Date.now() + 10 * 60 * 1000; entry.count = 0; }
+        attempts.set(key, entry);
+        return json(req, res, 401, { error: 'Nom ou code incorrect. Vérifiez-les puis réessayez.' });
+      }
+      attempts.delete(key);
+      return json(req, res, 200, { ok: true, name: account.name }, { 'Set-Cookie': memberCookies(req, account, store) });
     }
     if (url.pathname === '/api/wishlist' && req.method === 'GET') {
       const store = await readStore();
       const grant = accessGrant(req);
-      if (!grant || !safeEqual(grant.codeHash || '', store.shareCodeHash)) return json(req, res, 401, { error: 'Accès requis.' });
+      const member = grant && grant.codeHash === store.shareCodeHash && (store.visitorAccounts || []).find((account) => account.id === grant.memberId);
+      if (!member) return json(req, res, 401, { error: 'Connectez-vous pour consulter la liste.' });
       return json(req, res, 200, { title: store.title, description: store.description, items: store.items });
     }
     if (url.pathname === '/api/admin/session' && req.method === 'GET') return json(req, res, 200, { authenticated: hasSession(req) });
@@ -521,8 +650,12 @@ async function handle(req, res) {
       return json(req, res, 200, { ok: true });
     }
     if (url.pathname === '/api/admin/share-code' && req.method === 'POST') {
-      const code = makeCode(); store.shareCodeHash = hash(code); await writeStore(store);
+      const code = makeCode(); store.shareCodeHash = hash(code); store.shareCodeEncrypted = encryptShareCode(code); store.visitorAccounts = []; await writeStore(store);
       return json(req, res, 200, { code });
+    }
+    if (url.pathname === '/api/admin/share-code' && req.method === 'GET') {
+      const code = decryptShareCode(store.shareCodeEncrypted);
+      return json(req, res, 200, { available: Boolean(code), code });
     }
     return json(req, res, 404, { error: 'Page introuvable.' });
   }
